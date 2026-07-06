@@ -24,21 +24,22 @@ jobs:
           # 1. Navigate to the repository root
           cd /home/sujal/apps/Ionova-Analyser
           
-          # 2. Pull the latest changes from GitHub
-          git pull origin main
+          # 2. Reset any local changes and pull the latest code from GitHub
+          sudo git reset --hard origin/main
+          sudo git pull origin main
           
-          # 3. Build the Frontend
-          cd frontend
-          # Load your user environment paths so 'npm' and 'node' are recognized
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          # 3. Build the Frontend as the 'sujal' user to preserve node/npm environment settings
+          sudo -u sujal -i bash -c "
+            cd /home/sujal/apps/Ionova-Analyser/frontend
+            
+            # Load NVM (Node Version Manager) environment paths
+            export NVM_DIR=\"\$HOME/.nvm\"
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
+            
+            # Install packages and build production assets
+            npm install
+            npm run build
+          "
           
-          npm install
-          npm run build
-          
-          # 4. Restart Nginx to ensure clean state
+          # 4. Restart Nginx to clean the caching state
           sudo systemctl reload nginx
-          
-          # 5. Optional: Restart Backend if you changed Python code
-          # cd ../backend
-          # (Add any backend update or restart commands here if needed)
