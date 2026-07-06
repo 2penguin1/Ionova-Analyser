@@ -41,7 +41,7 @@ jobs:
           # 4. Reload your Nginx proxy router
           sudo systemctl reload nginx
           
-          # 5. Restart the FastAPI Backend securely
+          # 5. Restart the FastAPI Backend securely without PM2
           sudo -u sujal -i bash << 'EOF'
             cd /home/sujal/apps/Ionova-Analyser/backend
             
