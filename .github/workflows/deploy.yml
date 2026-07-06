@@ -29,7 +29,7 @@ jobs:
             git pull origin main
           EOF
           
-          # 3. Build the Frontend assets cleanly using a Heredoc block
+          # 3. Build the Frontend assets cleanly
           sudo -u sujal -i bash << 'EOF'
             cd /home/sujal/apps/Ionova-Analyser/frontend
             export NVM_DIR="$HOME/.nvm"
@@ -38,12 +38,21 @@ jobs:
             npm run build
           EOF
           
-          # 4. Reload your Nginx proxy router configuration
+          # 4. Reload your Nginx proxy router
           sudo systemctl reload nginx
           
-          # 5. Restart your FastAPI backend via PM2
+          # 5. Restart the FastAPI Backend securely
           sudo -u sujal -i bash << 'EOF'
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            pm2 restart ionova-backend
+            cd /home/sujal/apps/Ionova-Analyser/backend
+            
+            # Find and kill the old Python process running on port 8000
+            fuser -k 8000/tcp || true
+            
+            # Activate virtual environment if it exists
+            if [ -d "venv" ]; then
+              source venv/bin/activate
+            fi
+            
+            # Start the new backend in the background and log output to backend.log
+            nohup python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 > backend.log 2>&1 &
           EOF
