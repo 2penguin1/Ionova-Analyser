@@ -1,9 +1,7 @@
-name: Deploy IoNova Eval Analyzer
+name: Deploy IoNova Eval Analyzer (Manual)
 
 on:
-  push:
-    branches:
-      - main  # Triggers the deployment whenever you push to main
+  workflow_dispatch: # This changes the trigger from automatic to 100% manual!
 
 jobs:
   deploy:
@@ -24,22 +22,25 @@ jobs:
           # 1. Navigate to the repository root
           cd /home/sujal/apps/Ionova-Analyser
           
-          # 2. Reset any local changes and pull the latest code from GitHub
+          # 2. Reset local changes and pull the latest code
           sudo git reset --hard origin/main
           sudo git pull origin main
           
-          # 3. Build the Frontend as the 'sujal' user to preserve node/npm environment settings
+          # 3. Build the Frontend as the 'sujal' user
           sudo -u sujal -i bash -c "
             cd /home/sujal/apps/Ionova-Analyser/frontend
-            
-            # Load NVM (Node Version Manager) environment paths
             export NVM_DIR=\"\$HOME/.nvm\"
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
-            
-            # Install packages and build production assets
             npm install
             npm run build
           "
           
-          # 4. Restart Nginx to clean the caching state
+          # 4. Restart Nginx to clean cache
           sudo systemctl reload nginx
+          
+          # 5. Restart the Python FastAPI Backend Process
+          # If you use Systemd (recommended), uncomment the line below:
+          # sudo systemctl restart ionova-backend
+          
+          # If you use PM2 to manage your Python app, uncomment the line below:
+          sudo -u sujal -i bash -c "pm2 restart ionova-backend"
