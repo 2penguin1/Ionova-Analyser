@@ -19,31 +19,25 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          # 1. Resolve the Git security blocker globally for the ubuntu user
-          git config --global --add safe.directory /home/sujal/apps/Ionova-Analyser
+          # 1. Run the Git commands directly as the folder owner 'sujal' to completely bypass dubious ownership flags
+          sudo -u sujal -i git config --global --add safe.directory /home/sujal/apps/Ionova-Analyser
+          sudo -u sujal -i bash -c "cd /home/sujal/apps/Ionova-Analyser && git reset --hard origin/main && git pull origin main"
           
-          # 2. Navigate to the repository root
-          cd /home/sujal/apps/Ionova-Analyser
-          
-          # 3. Pull down clean changes from main branch
-          sudo git reset --hard origin/main
-          sudo git pull origin main
-          
-          # 4. Build the Frontend using a clean environment wrapper
-          sudo -u sujal -i bash -c '
+          # 2. Build the Frontend assets cleanly as the 'sujal' user
+          sudo -u sujal -i bash -c "
             cd /home/sujal/apps/Ionova-Analyser/frontend
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            export NVM_DIR=\$HOME/.nvm
+            [ -s \$NVM_DIR/nvm.sh ] && . \$NVM_DIR/nvm.sh
             npm install
             npm run build
-          '
+          "
           
-          # 5. Reload your Nginx proxy router configuration
+          # 3. Reload your Nginx proxy server configuration (runs as root/ubuntu)
           sudo systemctl reload nginx
           
-          # 6. Safely restart your FastAPI backend process manager using sujal profile paths
-          sudo -u sujal -i bash -c '
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          # 4. Restart your FastAPI backend via PM2 using sujal's profile paths
+          sudo -u sujal -i bash -c "
+            export NVM_DIR=\$HOME/.nvm
+            [ -s \$NVM_DIR/nvm.sh ] && . \$NVM_DIR/nvm.sh
             pm2 restart ionova-backend
-          '
+          "
