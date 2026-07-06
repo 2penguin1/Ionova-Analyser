@@ -1,7 +1,7 @@
 name: Deploy IoNova Eval Analyzer (Manual)
 
 on:
-  workflow_dispatch: # This changes the trigger from automatic to 100% manual!
+  workflow_dispatch: # Manual deployment trigger
 
 jobs:
   deploy:
@@ -19,14 +19,17 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          # 1. Navigate to the repository root
+          # 1. Tell Git to trust this directory layout explicitly
+          sudo git config --global --add safe.directory /home/sujal/apps/Ionova-Analyser
+          
+          # 2. Navigate to the repository root
           cd /home/sujal/apps/Ionova-Analyser
           
-          # 2. Reset local changes and pull the latest code
+          # 3. Reset local changes and pull latest changes safely
           sudo git reset --hard origin/main
           sudo git pull origin main
           
-          # 3. Build the Frontend as the 'sujal' user
+          # 4. Build the Frontend as the 'sujal' user
           sudo -u sujal -i bash -c "
             cd /home/sujal/apps/Ionova-Analyser/frontend
             export NVM_DIR=\"\$HOME/.nvm\"
@@ -35,12 +38,11 @@ jobs:
             npm run build
           "
           
-          # 4. Restart Nginx to clean cache
+          # 5. Restart Nginx to flush routing caches
           sudo systemctl reload nginx
           
-          # 5. Restart the Python FastAPI Backend Process
-          # If you use Systemd (recommended), uncomment the line below:
-          # sudo systemctl restart ionova-backend
-          
-          # If you use PM2 to manage your Python app, uncomment the line below:
-          sudo -u sujal -i bash -c "pm2 restart ionova-backend"
+          # 6. Restart the Python FastAPI Backend Process via PM2 as user 'sujal'
+          sudo -u sujal -i bash -c "
+            export PATH=\$PATH:\$HOME/.config/nvm/versions/node/\$(node -v)/bin:\$HOME/.npm-global/bin
+            pm2 restart ionova-backend
+          "
