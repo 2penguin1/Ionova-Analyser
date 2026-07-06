@@ -55,6 +55,8 @@ export default function SearchPage() {
   const [selected, setSelected] = useState<ResultRow | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The query that produced the currently displayed results — buckets scope to this.
+  const [ranDsl, setRanDsl] = useState('');
 
   // Prefill from URL (?dsl= & ?run=) — e.g. click-through from Run Detail.
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function SearchPage() {
         page_size: PAGE_SIZE,
         with_facets: true,
       }),
-    onSuccess: (res, vars) => { setData(res); setPage(vars.page); setError(null); qc.invalidateQueries({ queryKey: ['search-history'] }); },
+    onSuccess: (res, vars) => { setData(res); setPage(vars.page); setRanDsl(vars.dsl); setError(null); qc.invalidateQueries({ queryKey: ['search-history'] }); },
     onError: (e: Error) => { setError(e.message); setData(null); },
   });
 
@@ -107,7 +109,7 @@ export default function SearchPage() {
     setPins(next);
     const combined = combineDsl(combinePins(next), userDsl);
     if (combined.trim()) search.mutate({ dsl: combined, page: 1 });
-    else { setData(null); setError(null); }
+    else { setData(null); setRanDsl(''); setError(null); }
   }
 
   return (
@@ -140,7 +142,7 @@ export default function SearchPage() {
       />
 
       {showBuckets && (
-        <BucketsPanel runScope={runScope} meta={meta.data} onPin={addPin} />
+        <BucketsPanel runScope={runScope} queryDsl={ranDsl} meta={meta.data} onPin={addPin} />
       )}
 
       {pins.length > 0 && (
@@ -152,7 +154,7 @@ export default function SearchPage() {
               <button onClick={() => removePin(i)} className="hover:text-danger"><X size={12} /></button>
             </span>
           ))}
-          <button onClick={() => { setPins([]); setData(null); }} className="text-xs text-[var(--text-muted)] hover:text-danger">clear all</button>
+          <button onClick={() => { setPins([]); setData(null); setRanDsl(''); }} className="text-xs text-[var(--text-muted)] hover:text-danger">clear all</button>
         </div>
       )}
 

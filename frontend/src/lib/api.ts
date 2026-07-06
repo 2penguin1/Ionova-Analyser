@@ -53,6 +53,10 @@ export const api = {
   facets: (runId: string, field: string, limit = 300) =>
     http<FieldFacets>(`/runs/${runId}/facets?field=${encodeURIComponent(field)}&limit=${limit}`),
 
+  // Buckets scoped to the current query — empty dsl falls back to the whole run.
+  queryFacets: (body: { field: string; dsl?: string; run_id?: string | null; limit?: number }) =>
+    http<FieldFacets>('/search/facets', { method: 'POST', body: JSON.stringify(body) }),
+
   countryAnalytics: (runId: string) => http<CountryAnalytics[]>(`/runs/${runId}/analytics/country`),
   errorClusters: (runId: string, limit = 25) => http<ErrorCluster[]>(`/runs/${runId}/analytics/clusters?limit=${limit}`),
 

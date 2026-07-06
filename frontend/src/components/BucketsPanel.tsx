@@ -18,15 +18,19 @@ const SIDES = [
 ];
 
 /**
- * Buckets: pick a field side + field, list every distinct value with its count.
- * Clicking a value pins it as a locked filter that ANDs into all later searches.
+ * Buckets: pick a field side + field, list every distinct value with its count
+ * *within the current query's result set*. Clicking a value pins it as a locked
+ * filter that ANDs into all later searches.
  */
 export function BucketsPanel({
   runScope,
+  queryDsl,
   meta,
   onPin,
 }: {
   runScope: string;
+  /** The query the buckets are scoped to; empty → whole run (global). */
+  queryDsl: string;
   meta?: MetaFields;
   onPin: (pin: BucketPin) => void;
 }) {
@@ -35,8 +39,8 @@ export function BucketsPanel({
   const token = `${side}.${field}`;
 
   const facets = useQuery({
-    queryKey: ['facets', runScope, token],
-    queryFn: () => api.facets(runScope, token),
+    queryKey: ['facets', runScope, token, queryDsl],
+    queryFn: () => api.queryFacets({ field: token, dsl: queryDsl, run_id: runScope }),
     enabled: !!runScope,
   });
 
@@ -46,7 +50,7 @@ export function BucketsPanel({
         <Layers size={15} className="text-accent" />
         <span className="text-sm font-medium">Buckets</span>
         <span className="text-xs text-[var(--text-muted)]">
-          group a field's values, click to pin as a fixed filter
+          {queryDsl ? "group this query's values" : "group the run's values"}, click to pin as a fixed filter
         </span>
         <div className="ml-auto flex items-center gap-2">
           <Select value={side} onChange={(e) => setSide(e.target.value)} className="h-8 text-xs">
@@ -65,7 +69,7 @@ export function BucketsPanel({
       ) : facets.isError ? (
         <div className="text-sm text-danger">{(facets.error as Error).message}</div>
       ) : !facets.data?.buckets.length ? (
-        <div className="text-sm text-[var(--text-muted)]">No values for this field in this run.</div>
+        <div className="text-sm text-[var(--text-muted)]">No values for this field in {queryDsl ? 'this query' : 'this run'}.</div>
       ) : (
         <div className="max-h-56 overflow-y-auto grid grid-cols-2 gap-x-4 gap-y-0.5 md:grid-cols-3">
           {facets.data.buckets.map((b) => (

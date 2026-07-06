@@ -5,13 +5,19 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.models import SearchHistory
-from app.schemas import ParseRequest, SearchRequest, serialize_result_row
-from app.search import DslError, parse_dsl, run_search, validate_ast
-from app.search.fields import FieldError
+from app.models import EvalResult, SearchHistory
+from app.schemas import (
+    FacetRequest,
+    ParseRequest,
+    SearchRequest,
+    serialize_result_row,
+)
+from app.search import DslError, compile_ast, parse_dsl, run_search, validate_ast
+from app.search.fields import FieldError, resolve_column
 
 router = APIRouter(tags=["search"])
 
@@ -81,6 +87,45 @@ def parse(req: ParseRequest) -> dict:
     except (FieldError, ValueError) as exc:
         raise HTTPException(422, f"Invalid query: {exc}") from exc
     return {"ast": ast}
+
+
+@router.post("/search/facets")
+def search_facets(req: FacetRequest, db: Session = Depends(get_db)) -> dict:
+    """Distinct values + counts for one field, scoped to the *current query*.
+
+    Unlike ``GET /runs/{id}/facets`` (which buckets the whole run), this applies
+    the active dsl/ast as a filter so the Buckets panel reflects exactly the rows
+    the query matches. An empty query falls back to the full run / all runs.
+    """
+    try:
+        col = resolve_column(req.field)
+    except FieldError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    conditions = [col.isnot(None), col != ""]
+
+    # Scope to the current query when one is supplied.
+    if req.ast is not None or req.dsl:
+        try:
+            ast = validate_ast(_resolve_ast(req.dsl, req.ast))
+        except DslError as exc:
+            raise HTTPException(422, f"DSL error: {exc}") from exc
+        except (FieldError, ValueError) as exc:
+            raise HTTPException(422, f"Invalid query: {exc}") from exc
+        conditions.append(compile_ast(ast))
+
+    if req.run_id:
+        conditions.append(EvalResult.run_id == uuid.UUID(req.run_id))
+
+    limit = max(1, min(req.limit, 2000))
+    rows = db.execute(
+        select(col, func.count())
+        .where(and_(*conditions))
+        .group_by(col)
+        .order_by(func.count().desc(), col.asc())
+        .limit(limit)
+    ).all()
+    return {"field": req.field, "buckets": [{"value": r[0], "count": r[1]} for r in rows]}
 
 
 @router.get("/search-history")

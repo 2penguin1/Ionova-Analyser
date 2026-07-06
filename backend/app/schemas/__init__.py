@@ -30,6 +30,17 @@ class ParseRequest(BaseModel):
     dsl: str
 
 
+class FacetRequest(BaseModel):
+    """Bucket a single field's values over the *current query's* result set.
+    With no dsl/ast, it falls back to the whole run (the old global behavior)."""
+
+    field: str
+    dsl: str | None = None
+    ast: dict | None = None
+    run_id: str | None = None
+    limit: int = 300
+
+
 class SavedFilterRequest(BaseModel):
     name: str
     dsl: str | None = None
